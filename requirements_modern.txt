@@ -1,9 +1,0 @@
-yfinance
-pandas
-numpy
-matplotlib
-seaborn
-scipy
-ipython
-streamlit
-plotly
