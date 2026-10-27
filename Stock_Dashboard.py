@@ -2,13 +2,12 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
 import watchlist_manager as wm
+import navbar
 
 # ==========================================================
 # PAGE CONFIGURATION
@@ -20,9 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ==========================================================
-# CUSTOM CSS FOR MODERN & RESPONSIVE UI
-# ==========================================================
+# Custom Styling matching AlphaStock theme
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
@@ -34,54 +31,6 @@ st.markdown("""
         background-color: #f8fafc;
     }
     
-    /* Top Brand Banner */
-    .brand-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-        padding: 18px 24px;
-        border-radius: 16px;
-        margin-bottom: 14px;
-        color: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .brand-title {
-        font-size: 1.6rem;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        background: linear-gradient(90deg, #38bdf8, #818cf8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
-    }
-    .brand-sub {
-        font-size: 0.9rem;
-        color: #94a3b8;
-        margin-top: 2px;
-    }
-    .brand-chip {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.88rem;
-        font-weight: 600;
-        color: #f1f5f9;
-    }
-
-    /* Navbar Container */
-    .navbar-wrapper {
-        background: #ffffff;
-        border-radius: 14px;
-        padding: 8px 12px;
-        margin-bottom: 22px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e2e8f0;
-    }
-    
-    /* Metric & Stat Cards */
     .stMetric {
         background-color: #ffffff;
         padding: 16px;
@@ -106,7 +55,7 @@ st.markdown("""
         margin-bottom: 4px;
     }
     .stat-value {
-        font-size: 1.4rem;
+        font-size: 1.35rem;
         font-weight: 700;
         color: #0f172a;
     }
@@ -116,7 +65,6 @@ st.markdown("""
         margin-top: 4px;
     }
 
-    /* Badges */
     .stock-badge {
         display: inline-block;
         padding: 4px 10px;
@@ -143,7 +91,6 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* Table & Headers */
     .table-header {
         font-weight: 700;
         color: #334155;
@@ -151,40 +98,14 @@ st.markdown("""
     }
     .section-title {
         color: #0f172a;
-        font-weight: 700;
-        letter-spacing: -0.3px;
-        margin-bottom: 4px;
+        font-weight: 800;
+        letter-spacing: -0.4px;
+        margin-bottom: 2px;
     }
     .section-subtitle {
         color: #64748b;
         font-size: 0.95rem;
         margin-bottom: 16px;
-    }
-    
-    /* Signal Boxes */
-    .signal-box-bullish {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        border-left: 5px solid #22c55e;
-        padding: 14px 18px;
-        border-radius: 8px;
-        margin-bottom: 14px;
-    }
-    .signal-box-bearish {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-left: 5px solid #ef4444;
-        padding: 14px 18px;
-        border-radius: 8px;
-        margin-bottom: 14px;
-    }
-    .signal-box-neutral {
-        background: #fefce8;
-        border: 1px solid #fef08a;
-        border-left: 5px solid #eab308;
-        padding: 14px 18px;
-        border-radius: 8px;
-        margin-bottom: 14px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -198,19 +119,17 @@ if "watchlist" not in st.session_state:
 if "selected_ticker" not in st.session_state:
     st.session_state.selected_ticker = st.session_state.watchlist[0] if st.session_state.watchlist else "AAPL"
 
-NAV_OPTIONS = [
+HOMEPAGE_TABS = [
     "🏠 Home / Dashboard",
     "💵 Current Stock Prices",
-    "📈 SMA vs EMA",
     "📋 Stock Summary",
     "⭐ Watchlist",
     "🎲 Risk & Monte Carlo"
 ]
 
-if "active_nav" not in st.session_state:
-    st.session_state.active_nav = NAV_OPTIONS[0]
+if "active_nav" not in st.session_state or st.session_state.active_nav not in HOMEPAGE_TABS:
+    st.session_state.active_nav = HOMEPAGE_TABS[0]
 
-# Baseline stock lists
 tech_list = ['AAPL', 'GOOG', 'MSFT', 'AMZN']
 nyse_list = ['JNJ', 'NKE', 'WMT']
 
@@ -241,7 +160,7 @@ selected_stock = st.sidebar.selectbox(
     index=curr_idx,
     key="sidebar_ticker_picker",
     on_change=on_sidebar_stock_select,
-    help="Select the equity to inspect across technical and fundamental views"
+    help="Select the equity to inspect across dashboard views"
 )
 st.session_state.selected_ticker = selected_stock
 
@@ -254,14 +173,19 @@ if start_date >= end_date:
     st.sidebar.error("Start date must precede end date. Defaulting to 1 year window.")
     start_date = end_date - timedelta(days=365)
 
-# Sidebar Quick Navigation
+# Sidebar Navigation Menu
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🧭 Navigation Menu")
-for nav_item in NAV_OPTIONS:
-    is_active = (nav_item == st.session_state.active_nav)
-    btn_label = f"👉 {nav_item}" if is_active else nav_item
-    if st.sidebar.button(btn_label, key=f"sidebar_nav_{nav_item}", use_container_width=True, disabled=is_active):
-        st.session_state.active_nav = nav_item
+
+# Direct link to separate SMA vs EMA page
+if st.sidebar.button("📈 Open Separate SMA vs EMA Page", key="sidebar_sma_page_btn", use_container_width=True, type="primary"):
+    navbar.switch_to_sma_vs_ema()
+
+for tab_name in HOMEPAGE_TABS:
+    is_active = (tab_name == st.session_state.active_nav)
+    btn_label = f"👉 {tab_name}" if is_active else tab_name
+    if st.sidebar.button(btn_label, key=f"sb_tab_{tab_name}", use_container_width=True, disabled=is_active):
+        st.session_state.active_nav = tab_name
         st.rerun()
 
 st.sidebar.markdown("---")
@@ -296,10 +220,6 @@ def get_multi_historical_data(tickers_tuple, start, end):
         return pd.DataFrame()
 
 @st.cache_data(ttl=60)
-def get_detailed_quote_cached(ticker):
-    return wm.fetch_detailed_quote(ticker)
-
-@st.cache_data(ttl=60)
 def get_detailed_quotes_cached(tickers_tuple):
     return wm.fetch_detailed_quotes(list(tickers_tuple))
 
@@ -307,58 +227,13 @@ def get_detailed_quotes_cached(tickers_tuple):
 def get_stock_summary_cached(ticker):
     return wm.fetch_stock_summary(ticker)
 
-# Fetch current quote for top brand chip
-active_quote = get_detailed_quote_cached(selected_stock)
-active_price_str = f"${active_quote['price']:.2f}" if active_quote['price'] is not None else "N/A"
-if active_quote['pct_change'] is not None:
-    sign = "+" if active_quote['pct_change'] >= 0 else ""
-    active_delta_str = f"{sign}{active_quote['pct_change']:.2f}%"
-else:
-    active_delta_str = "0.00%"
-
 # ==========================================================
-# 1. TOP BRAND HEADER & RESPONSIVE NAVBAR
+# 1. TOP BRAND HEADER & SHARED NAVBAR
 # ==========================================================
-brand_html = f"""
-<div class="brand-banner">
-    <div>
-        <h1 class="brand-title">📈 AlphaStock Terminal</h1>
-        <div class="brand-sub">Stock Market Technical Analysis, Live Prices & Monte Carlo Forecasting</div>
-    </div>
-    <div style="text-align: right;">
-        <span class="brand-chip">🎯 Active: <strong>{selected_stock}</strong> • {active_price_str} ({active_delta_str})</span>
-    </div>
-</div>
-"""
-st.markdown(brand_html, unsafe_allow_html=True)
-
-# Top Navigation Bar using st.segmented_control
-st.markdown('<div class="navbar-wrapper">', unsafe_allow_html=True)
-
-# Determine default index
-current_nav_idx = NAV_OPTIONS.index(st.session_state.active_nav) if st.session_state.active_nav in NAV_OPTIONS else 0
-
-def on_navbar_change():
-    if st.session_state.navbar_selector:
-        st.session_state.active_nav = st.session_state.navbar_selector
-
-nav_selection = st.segmented_control(
-    "Navigation Bar",
-    options=NAV_OPTIONS,
-    default=st.session_state.active_nav,
-    key="navbar_selector",
-    on_change=on_navbar_change,
-    label_visibility="collapsed"
-)
-
-# Sync state
-if nav_selection and nav_selection != st.session_state.active_nav:
-    st.session_state.active_nav = nav_selection
-
-st.markdown('</div>', unsafe_allow_html=True)
+navbar.render_brand_banner(selected_stock)
+navbar.render_navbar(current_page="dashboard", active_tab=st.session_state.active_nav)
 
 current_tab = st.session_state.active_nav
-
 
 # ==========================================================
 # VIEW 1: 🏠 HOME / DASHBOARD
@@ -375,16 +250,13 @@ if current_tab == "🏠 Home / Dashboard":
     for idx, b_item in enumerate(bench_quotes):
         with b_cols[idx]:
             p_val = f"${b_item['price']:.2f}" if b_item['price'] is not None else "N/A"
-            if b_item['pct_change'] is not None:
-                d_val = f"{b_item['pct_change']:+.2f}%"
-            else:
-                d_val = "0.00%"
+            d_val = f"{b_item['pct_change']:+.2f}%" if b_item['pct_change'] is not None else "0.00%"
             st.metric(label=f"{b_item['ticker']} ({b_item['name'].split()[0]})", value=p_val, delta=d_val)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Fetch historical data
-    stock_data = get_historical_data(selected_stock, start_date, end_date)
+    with st.spinner(f"Loading market data for {selected_stock}..."):
+        stock_data = get_historical_data(selected_stock, start_date, end_date)
 
     if stock_data.empty or "Close" not in stock_data:
         st.error(f"⚠️ No historical trading data available for {selected_stock} in the selected range. Please expand the date range in the sidebar.")
@@ -394,7 +266,6 @@ if current_tab == "🏠 Home / Dashboard":
         with dash_col1:
             st.markdown("##### 📊 Interactive Price Action & Moving Averages")
             
-            # Chart controls
             c_ctrl1, c_ctrl2 = st.columns([1.5, 2.5])
             with c_ctrl1:
                 chart_type = st.radio("Chart Style", ["Candlestick", "Line Chart"], horizontal=True, key="home_chart_style")
@@ -407,22 +278,14 @@ if current_tab == "🏠 Home / Dashboard":
                 fig.add_trace(
                     go.Candlestick(
                         x=stock_data.index,
-                        open=stock_data['Open'],
-                        high=stock_data['High'],
-                        low=stock_data['Low'],
-                        close=stock_data['Close'],
+                        open=stock_data['Open'], high=stock_data['High'], low=stock_data['Low'], close=stock_data['Close'],
                         name=f"{selected_stock} Candlestick"
                     ),
                     row=1, col=1
                 )
             else:
                 fig.add_trace(
-                    go.Scatter(
-                        x=stock_data.index,
-                        y=stock_data['Close'],
-                        name=f"{selected_stock} Close",
-                        line=dict(color='#2563eb', width=2.5)
-                    ),
+                    go.Scatter(x=stock_data.index, y=stock_data['Close'], name=f"{selected_stock} Close", line=dict(color='#2563eb', width=2.5)),
                     row=1, col=1
                 )
 
@@ -430,26 +293,14 @@ if current_tab == "🏠 Home / Dashboard":
             for ma in ma_choices:
                 ma_series = stock_data['Close'].rolling(window=ma).mean()
                 fig.add_trace(
-                    go.Scatter(
-                        x=stock_data.index,
-                        y=ma_series,
-                        name=f"SMA ({ma})",
-                        line=dict(color=ma_palette.get(ma, '#64748b'), width=1.8, dash='dash')
-                    ),
+                    go.Scatter(x=stock_data.index, y=ma_series, name=f"SMA ({ma})", line=dict(color=ma_palette.get(ma, '#64748b'), width=1.8, dash='dash')),
                     row=1, col=1
                 )
 
-            # Volume Subplot
             if "Volume" in stock_data:
                 vol_colors = ['#10b981' if c >= o else '#ef4444' for c, o in zip(stock_data['Close'], stock_data.get('Open', stock_data['Close']))]
                 fig.add_trace(
-                    go.Bar(
-                        x=stock_data.index,
-                        y=stock_data['Volume'],
-                        name="Volume",
-                        marker_color=vol_colors,
-                        opacity=0.7
-                    ),
+                    go.Bar(x=stock_data.index, y=stock_data['Volume'], name="Volume", marker_color=vol_colors, opacity=0.7),
                     row=2, col=1
                 )
 
@@ -478,7 +329,6 @@ if current_tab == "🏠 Home / Dashboard":
                 delta=f"{price_delta_pct:+.2f}% (${price_delta:+.2f})"
             )
 
-            # High / Low / Volume stats
             high_val = float(stock_data['High'].max()) if "High" in stock_data else 0.0
             low_val = float(stock_data['Low'].min()) if "Low" in stock_data else 0.0
             vol_mean = float(stock_data['Volume'].mean()) if "Volume" in stock_data else 0.0
@@ -496,19 +346,16 @@ if current_tab == "🏠 Home / Dashboard":
             </div>
             """, unsafe_allow_html=True)
 
-            # Quick Navigation actions
-            st.markdown("##### ⚡ Quick Analysis Links")
-            q_col1, q_col2 = st.columns(2)
-            with q_col1:
-                if st.button("📈 SMA vs EMA", use_container_width=True):
-                    st.session_state.active_nav = "📈 SMA vs EMA"
-                    st.rerun()
-            with q_col2:
-                if st.button("📋 Stock Summary", use_container_width=True):
-                    st.session_state.active_nav = "📋 Stock Summary"
-                    st.rerun()
+            # Direct Call-to-action for Separate SMA vs EMA Page
+            st.markdown("##### 📈 Dedicated Technical Page")
+            if st.button("🚀 Open Separate SMA vs EMA Page", use_container_width=True, type="primary"):
+                navbar.switch_to_sma_vs_ema()
 
-        # Daily Return Distribution
+            if st.button("📋 Open Stock Summary View", use_container_width=True):
+                st.session_state.active_nav = "📋 Stock Summary"
+                st.rerun()
+
+        # Returns Distribution Sub-section
         st.markdown("---")
         dist_col1, dist_col2 = st.columns([1.5, 1.5])
         
@@ -532,7 +379,6 @@ if current_tab == "🏠 Home / Dashboard":
                 ret_mean = returns_clean.mean() * 100
                 ret_std = returns_clean.std() * 100
                 q05 = returns_clean.quantile(0.05) * 100
-                q95 = returns_clean.quantile(0.95) * 100
 
                 st.markdown(f"""
                 <div class="stat-card">
@@ -664,171 +510,13 @@ elif current_tab == "💵 Current Stock Prices":
             with act_col2:
                 if st.button("SMA/EMA", key=f"sma_tbl_{s}", use_container_width=True):
                     st.session_state.selected_ticker = s
-                    st.session_state.active_nav = "📈 SMA vs EMA"
-                    st.rerun()
+                    navbar.switch_to_sma_vs_ema()
 
         st.markdown("<hr style='margin: 4px 0 6px 0; border: 0.5px solid #edf2f7;'>", unsafe_allow_html=True)
 
 
 # ==========================================================
-# VIEW 3: 📈 SMA VS EMA
-# ==========================================================
-elif current_tab == "📈 SMA vs EMA":
-    st.markdown(f"<h2 class='section-title'>📈 SMA vs EMA Technical Analysis: {selected_stock}</h2>", unsafe_allow_html=True)
-    st.markdown("<p class='section-subtitle'>Compare Simple Moving Averages against Exponential Moving Averages, evaluate momentum lags, and detect Golden/Death Cross trading signals.</p>", unsafe_allow_html=True)
-
-    # Educational Card
-    with st.expander("ℹ️ Understanding the Difference: SMA vs EMA", expanded=False):
-        st.markdown("""
-        * **Simple Moving Average (SMA)**: Calculates the arithmetic average price over a chosen window $N$. Every single day in the window carries equal weight ($1/N$). It provides a smooth baseline and acts as strong institutional support/resistance, but responds with a noticeable lag.
-        * **Exponential Moving Average (EMA)**: Applies a weighted multiplier $\\alpha = \\frac{2}{N + 1}$ that gives significantly more weight to the most recent price action. It turns faster than SMA and alerts traders to emerging momentum breakouts or trend reversals earlier.
-        * **Golden Cross**: Occurs when a shorter moving average (e.g. 20-day or 50-day) crosses **above** a longer moving average (e.g. 50-day or 200-day), signaling a bullish regime change.
-        * **Death Cross**: Occurs when a shorter moving average crosses **below** a longer moving average, signaling an impending bearish downtrend.
-        """)
-
-    # Interactive Controls
-    ctrl_c1, ctrl_c2, ctrl_c3, ctrl_c4 = st.columns(4)
-    with ctrl_c1:
-        short_window = st.slider("Short-Term Period (Days)", min_value=5, max_value=50, value=20, step=5)
-    with ctrl_c2:
-        long_window = st.slider("Long-Term Period (Days)", min_value=30, max_value=200, value=50, step=10)
-    with ctrl_c3:
-        chart_mode = st.selectbox("Price Plot Style", ["Candlestick", "Close Line"], index=0)
-    with ctrl_c4:
-        st.write("")
-        st.write("")
-        show_spread = st.checkbox("Show Momentum Spread (EMA - SMA)", value=True)
-
-    # Fetch data
-    stock_df = get_historical_data(selected_stock, start_date, end_date)
-
-    if stock_df.empty or "Close" not in stock_df:
-        st.error(f"No trading data available for {selected_stock} in the given date range.")
-    else:
-        close_series = stock_df['Close'].dropna()
-
-        # Compute MAs
-        stock_df[f'SMA_{short_window}'] = close_series.rolling(window=short_window).mean()
-        stock_df[f'SMA_{long_window}'] = close_series.rolling(window=long_window).mean()
-        stock_df[f'EMA_{short_window}'] = close_series.ewm(span=short_window, adjust=False).mean()
-        stock_df[f'EMA_{long_window}'] = close_series.ewm(span=long_window, adjust=False).mean()
-        stock_df['MA_Spread'] = stock_df[f'EMA_{short_window}'] - stock_df[f'SMA_{short_window}']
-
-        latest_close = float(close_series.iloc[-1])
-        curr_sma_s = float(stock_df[f'SMA_{short_window}'].dropna().iloc[-1])
-        curr_ema_s = float(stock_df[f'EMA_{short_window}'].dropna().iloc[-1])
-        curr_sma_l = float(stock_df[f'SMA_{long_window}'].dropna().iloc[-1])
-        curr_ema_l = float(stock_df[f'EMA_{long_window}'].dropna().iloc[-1])
-        curr_spread = float(stock_df['MA_Spread'].dropna().iloc[-1])
-
-        # Signal Detection Logic
-        ema_s_series = stock_df[f'EMA_{short_window}'].dropna()
-        ema_l_series = stock_df[f'EMA_{long_window}'].dropna()
-
-        crossover_msg = "No recent crossover event within current window."
-        signal_type = "neutral"
-
-        if len(ema_s_series) >= 2 and len(ema_l_series) >= 2:
-            now_diff = ema_s_series.iloc[-1] - ema_l_series.iloc[-1]
-            prev_diff = ema_s_series.iloc[-2] - ema_l_series.iloc[-2]
-
-            if now_diff > 0 and prev_diff <= 0:
-                crossover_msg = f"🔥 **BULLISH GOLDEN CROSS**: {short_window}-day EMA crossed above {long_window}-day EMA!"
-                signal_type = "bullish"
-            elif now_diff < 0 and prev_diff >= 0:
-                crossover_msg = f"⚠️ **BEARISH DEATH CROSS**: {short_window}-day EMA crossed below {long_window}-day EMA!"
-                signal_type = "bearish"
-            elif latest_close > curr_ema_s and curr_ema_s > curr_ema_l:
-                crossover_msg = f"🟢 **BULLISH ALIGNMENT**: Price (${latest_close:.2f}) > {short_window}D EMA (${curr_ema_s:.2f}) > {long_window}D EMA (${curr_ema_l:.2f}). Upward trend in progress."
-                signal_type = "bullish"
-            elif latest_close < curr_ema_s and curr_ema_s < curr_ema_l:
-                crossover_msg = f"🔴 **BEARISH ALIGNMENT**: Price (${latest_close:.2f}) < {short_window}D EMA (${curr_ema_s:.2f}) < {long_window}D EMA (${curr_ema_l:.2f}). Downward pressure active."
-                signal_type = "bearish"
-            else:
-                crossover_msg = f"🟡 **NEUTRAL / CONSOLIDATION**: Price is fluctuating between moving average bands."
-                signal_type = "neutral"
-
-        # Signal Banner
-        box_class = f"signal-box-{signal_type}"
-        st.markdown(f"<div class='{box_class}'>{crossover_msg}</div>", unsafe_allow_html=True)
-
-        # Plotly Technical Chart
-        if show_spread:
-            fig_ma = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.75, 0.25])
-        else:
-            fig_ma = go.Figure()
-
-        main_row = 1 if show_spread else None
-
-        # Add price
-        if chart_mode == "Candlestick" and all(k in stock_df for k in ["Open", "High", "Low", "Close"]):
-            fig_ma.add_trace(
-                go.Candlestick(
-                    x=stock_df.index,
-                    open=stock_df['Open'], high=stock_df['High'], low=stock_df['Low'], close=stock_df['Close'],
-                    name="Candlestick", opacity=0.7
-                ),
-                row=main_row, col=1 if show_spread else None
-            )
-        else:
-            fig_ma.add_trace(
-                go.Scatter(x=stock_df.index, y=stock_df['Close'], name=f"{selected_stock} Price", line=dict(color='#0f172a', width=2)),
-                row=main_row, col=1 if show_spread else None
-            )
-
-        # Add Moving Averages
-        fig_ma.add_trace(
-            go.Scatter(x=stock_df.index, y=stock_df[f'SMA_{short_window}'], name=f'SMA ({short_window})', line=dict(color='#2563eb', width=2.2)),
-            row=main_row, col=1 if show_spread else None
-        )
-        fig_ma.add_trace(
-            go.Scatter(x=stock_df.index, y=stock_df[f'EMA_{short_window}'], name=f'EMA ({short_window})', line=dict(color='#f97316', width=2.2, dash='dash')),
-            row=main_row, col=1 if show_spread else None
-        )
-        fig_ma.add_trace(
-            go.Scatter(x=stock_df.index, y=stock_df[f'SMA_{long_window}'], name=f'SMA ({long_window})', line=dict(color='#059669', width=2.2)),
-            row=main_row, col=1 if show_spread else None
-        )
-        fig_ma.add_trace(
-            go.Scatter(x=stock_df.index, y=stock_df[f'EMA_{long_window}'], name=f'EMA ({long_window})', line=dict(color='#dc2626', width=2.2, dash='dash')),
-            row=main_row, col=1 if show_spread else None
-        )
-
-        # Spread Subplot
-        if show_spread:
-            spread_colors = ['#10b981' if v >= 0 else '#ef4444' for v in stock_df['MA_Spread']]
-            fig_ma.add_trace(
-                go.Bar(x=stock_df.index, y=stock_df['MA_Spread'], name=f"EMA({short_window}) - SMA({short_window}) Spread", marker_color=spread_colors),
-                row=2, col=1
-            )
-            fig_ma.update_yaxes(title_text="Spread ($)", row=2, col=1)
-
-        fig_ma.update_layout(
-            template="plotly_white",
-            height=580,
-            margin=dict(l=20, r=20, t=10, b=10),
-            hovermode="x unified",
-            xaxis_rangeslider_visible=False,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_ma, use_container_width=True)
-
-        # Metric Comparison Grid
-        m_c1, m_c2, m_c3, m_c4, m_c5 = st.columns(5)
-        with m_c1:
-            st.metric(f"Current Price", f"${latest_close:.2f}")
-        with m_c2:
-            st.metric(f"SMA ({short_window})", f"${curr_sma_s:.2f}", delta=f"{((latest_close - curr_sma_s) / curr_sma_s) * 100:+.2f}% vs Price")
-        with m_c3:
-            st.metric(f"EMA ({short_window})", f"${curr_ema_s:.2f}", delta=f"{((latest_close - curr_ema_s) / curr_ema_s) * 100:+.2f}% vs Price")
-        with m_c4:
-            st.metric(f"SMA ({long_window})", f"${curr_sma_l:.2f}", delta=f"{((latest_close - curr_sma_l) / curr_sma_l) * 100:+.2f}% vs Price")
-        with m_c5:
-            st.metric(f"EMA ({long_window})", f"${curr_ema_l:.2f}", delta=f"{((latest_close - curr_ema_l) / curr_ema_l) * 100:+.2f}% vs Price")
-
-
-# ==========================================================
-# VIEW 4: 📋 STOCK SUMMARY
+# VIEW 3: 📋 STOCK SUMMARY
 # ==========================================================
 elif current_tab == "📋 Stock Summary":
     st.markdown(f"<h2 class='section-title'>📋 Stock Summary & Fundamentals: {selected_stock}</h2>", unsafe_allow_html=True)
@@ -836,6 +524,8 @@ elif current_tab == "📋 Stock Summary":
 
     with st.spinner(f"Retrieving corporate profile and fundamentals for {selected_stock}..."):
         summary_data = get_stock_summary_cached(selected_stock)
+
+    active_quote = wm.fetch_detailed_quote(selected_stock)
 
     # Header Card
     hdr_c1, hdr_c2 = st.columns([3, 1])
@@ -858,9 +548,8 @@ elif current_tab == "📋 Stock Summary":
     with hdr_c2:
         if summary_data['website']:
             st.link_button("🌐 Visit Official Website", summary_data['website'], use_container_width=True)
-        if st.button("📈 View Price Chart", use_container_width=True):
-            st.session_state.active_nav = "🏠 Home / Dashboard"
-            st.rerun()
+        if st.button("📈 Open Separate SMA vs EMA", use_container_width=True, type="primary"):
+            navbar.switch_to_sma_vs_ema()
 
     # 52-Week Range Visual Gauge
     if summary_data['fifty_two_week_high'] and summary_data['fifty_two_week_low'] and active_quote['price']:
@@ -883,7 +572,6 @@ elif current_tab == "📋 Stock Summary":
         </div>
         """, unsafe_allow_html=True)
 
-    # Business Overview
     with st.expander("📖 Business Profile & Operations Description", expanded=True):
         st.write(summary_data['description'])
 
@@ -931,13 +619,12 @@ elif current_tab == "📋 Stock Summary":
 
 
 # ==========================================================
-# VIEW 5: ⭐ WATCHLIST
+# VIEW 4: ⭐ WATCHLIST
 # ==========================================================
 elif current_tab == "⭐ Watchlist":
     st.markdown("<h2 class='section-title'>⭐ My Stock Watchlist</h2>", unsafe_allow_html=True)
     st.markdown("<p class='section-subtitle'>Add stocks to your custom watchlist, monitor live market movements, and launch one-click technical investigations.</p>", unsafe_allow_html=True)
 
-    # Add Stock Form
     with st.form(key="add_stock_to_watchlist_form", clear_on_submit=True):
         st.markdown("##### ➕ Add Stock to Watchlist")
         add_c1, add_c2, add_c3 = st.columns([3, 2.5, 1.5])
@@ -973,7 +660,6 @@ elif current_tab == "⭐ Watchlist":
                 else:
                     st.error(f"❌ {msg}")
 
-    # Watchlist Display
     if not st.session_state.watchlist:
         st.info("ℹ️ Your watchlist is currently empty. Add stocks above to get started!")
         if st.button("🔄 Restore Default Watchlist (AAPL, GOOG, MSFT, AMZN, TSLA)"):
@@ -983,7 +669,6 @@ elif current_tab == "⭐ Watchlist":
     else:
         wl_quotes = get_detailed_quotes_cached(tuple(st.session_state.watchlist))
 
-        # Metrics
         gainers = [d for d in wl_quotes if d['pct_change'] is not None and d['pct_change'] > 0]
         top_gainer = max(wl_quotes, key=lambda x: x['pct_change'] if x['pct_change'] is not None else -999) if wl_quotes else None
 
@@ -1002,8 +687,7 @@ elif current_tab == "⭐ Watchlist":
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Table Header
-        w_col_w = [3.2, 1.8, 1.8, 1.8, 1.8, 1.0]
+        w_col_w = [3.0, 1.8, 1.8, 1.8, 2.0, 1.0]
         wh1, wh2, wh3, wh4, wh5, wh6 = st.columns(w_col_w)
         wh1.markdown("<span class='table-header'>Stock & Name</span>", unsafe_allow_html=True)
         wh2.markdown("<span class='table-header'>Latest Price</span>", unsafe_allow_html=True)
@@ -1043,13 +727,19 @@ elif current_tab == "⭐ Watchlist":
             r4.markdown(f"<div style='font-size:0.88rem; color:#334155; margin-top:4px;'>{day_range_str}</div>", unsafe_allow_html=True)
 
             with r5:
-                if is_active:
-                    st.button("Active", key=f"wl_act_{sym}", disabled=True, use_container_width=True)
-                else:
-                    if st.button("📊 Inspect", key=f"wl_view_{sym}", use_container_width=True):
+                act_w1, act_w2 = st.columns(2)
+                with act_w1:
+                    if is_active:
+                        st.button("Active", key=f"wl_act_{sym}", disabled=True, use_container_width=True)
+                    else:
+                        if st.button("Inspect", key=f"wl_view_{sym}", use_container_width=True):
+                            st.session_state.selected_ticker = sym
+                            st.session_state.active_nav = "🏠 Home / Dashboard"
+                            st.rerun()
+                with act_w2:
+                    if st.button("SMA/EMA", key=f"wl_sma_{sym}", use_container_width=True):
                         st.session_state.selected_ticker = sym
-                        st.session_state.active_nav = "🏠 Home / Dashboard"
-                        st.rerun()
+                        navbar.switch_to_sma_vs_ema()
 
             with r6:
                 if st.button("🗑️", key=f"wl_del_{sym}", help=f"Remove {sym} from watchlist", use_container_width=True):
@@ -1064,13 +754,12 @@ elif current_tab == "⭐ Watchlist":
 
 
 # ==========================================================
-# VIEW 6: 🎲 RISK & MONTE CARLO
+# VIEW 5: 🎲 RISK & MONTE CARLO
 # ==========================================================
 elif current_tab == "🎲 Risk & Monte Carlo":
     st.markdown(f"<h2 class='section-title'>🎲 Risk Analysis & Monte Carlo Simulation: {selected_stock}</h2>", unsafe_allow_html=True)
     st.markdown("<p class='section-subtitle'>Multi-asset correlation heatmap, risk vs return trade-off, and Geometric Brownian Motion simulations to project future outcomes.</p>", unsafe_allow_html=True)
 
-    # Multi-stock basket data for correlation & risk
     basket_stocks = list(dict.fromkeys(([selected_stock] if selected_stock else []) + st.session_state.watchlist + tech_list + nyse_list))
     basket_df = get_multi_historical_data(tuple(basket_stocks), start_date, end_date)
 
@@ -1141,7 +830,6 @@ elif current_tab == "🎲 Risk & Monte Carlo":
                 start_price_sim = float(target_data['Close'].dropna().iloc[-1])
 
                 with st.spinner(f"Computing {sim_runs:,} randomized stochastic trajectories..."):
-                    # Vectorized simulation for high performance
                     daily_shocks = np.random.normal(loc=mu, scale=sigma, size=(sim_days, sim_runs))
                     price_trajectories = np.zeros((sim_days, sim_runs))
                     price_trajectories[0, :] = start_price_sim
@@ -1160,16 +848,12 @@ elif current_tab == "🎲 Risk & Monte Carlo":
 
                 with mc_col1:
                     fig_fan = go.Figure()
-                    
-                    # Plot historical tail
                     tail_df = target_data['Close'].tail(90)
                     fig_fan.add_trace(go.Scatter(x=tail_df.index, y=tail_df.values, name="Recent History", line=dict(color="#0f172a", width=3)))
 
-                    # Future dates
                     last_dt = target_data.index[-1]
                     future_dates = [last_dt + timedelta(days=i) for i in range(sim_days)]
 
-                    # Plot sample trajectories
                     for i in range(min(40, sim_runs)):
                         fig_fan.add_trace(go.Scatter(
                             x=future_dates, y=price_trajectories[:, i],
@@ -1177,7 +861,6 @@ elif current_tab == "🎲 Risk & Monte Carlo":
                             showlegend=False
                         ))
 
-                    # Plot mean path
                     fig_fan.add_trace(go.Scatter(x=future_dates, y=mean_trajectory, name="Mean Projection", line=dict(color="#dc2626", width=2.8, dash='dash')))
                     fig_fan.update_layout(title=f"{selected_stock} Forecast Fan Chart ({sim_days} Trading Days)", template="plotly_white", margin=dict(l=20, r=20, t=35, b=20))
                     st.plotly_chart(fig_fan, use_container_width=True)
@@ -1189,7 +872,6 @@ elif current_tab == "🎲 Risk & Monte Carlo":
                     st.error(f"**99% Value at Risk (VaR):** ${start_price_sim - q99:.2f} per share")
                     st.info(f"Across {sim_runs:,} randomized market paths, there is a 1% statistical chance the price will settle below **${q99:.2f}** at the end of {sim_days} trading days.")
 
-                # Final Price Distribution
                 fig_final_dist = px.histogram(final_prices, nbins=80, title=f"Final Price Probability Distribution ({selected_stock})", color_discrete_sequence=['#475569'])
                 fig_final_dist.add_vline(x=q99, line_width=3, line_dash="dash", line_color="red", annotation_text="1% VaR Level")
                 fig_final_dist.add_vline(x=mean_final, line_width=2, line_dash="dot", line_color="green", annotation_text="Mean Forecast")

@@ -19,13 +19,17 @@ The platform features a responsive top navigation bar designed for rapid technic
 * **Comprehensive Real-Time Market Table**: Full real-time quote board covering all tracked and watchlist equities with live sorting, search filter, day range, 52-week range, and market capitalization.
 * **Instant Actions**: Switch the active analysis target or jump directly into technical indicators with a single click.
 
-### 3. 📈 SMA vs EMA (Technical Analysis Workbench)
-* **Comparative Moving Average Analysis**: Evaluate **Simple Moving Averages (SMA)** vs **Exponential Moving Averages (EMA)** across customizable short-term (5–50 days) and long-term (30–200 days) horizons.
+### 3. 📈 SMA vs EMA (Dedicated Multi-Page Suite)
+* **Separate Dedicated Page**: Accessible directly from the top navbar or sidebar at [`pages/SMA_vs_EMA.py`](pages/SMA_vs_EMA.py).
+* **Interactive Stock & Range Selectors**: Choose from watchlist/popular stocks or enter any custom ticker, with presets from 1 Month to 5 Years.
+* **Customizable Periods**: Independently configure Short and Long periods for both SMA and EMA (e.g. 20 and 50 days) with Candlestick and Close Line options.
+* **Multi-Color Technical Overlays**: Distinct color palettes for Close Price, Solid Blue Short SMA, Dashed Amber Short EMA, Solid Green Long SMA, and Dashed Red Long EMA.
 * **Momentum Spread Indicator**: Visualize $(\text{EMA} - \text{SMA})$ momentum divergence subplots to detect trend acceleration or fading momentum.
 * **Crossover & Trend Signals**:
   * 🟢 **Golden Cross**: Short-term moving average crosses above long-term moving average (Bullish breakout).
   * 🔴 **Death Cross**: Short-term moving average crosses below long-term moving average (Bearish breakdown).
   * **Trend Bias**: Status indicators categorizing market posture as *Strongly Bullish*, *Bullish*, *Neutral / Consolidating*, or *Bearish*.
+* **Robust Error Handling**: Real-time handling of invalid tickers, loading states with spinners, and warnings for insufficient historical data.
 
 ### 4. 📋 Stock Summary & Fundamentals
 * **Corporate Profile**: Sector, Industry, Headquarters, Website, and Full-Time Employees.
@@ -82,6 +86,9 @@ The platform features a responsive top navigation bar designed for rapid technic
 Stock-Market-Analysis-and-Prediction/
 ├── Stock_Dashboard.py        # Core application with responsive Navbar and full views
 ├── app.py                    # Application launcher
+├── navbar.py                 # Shared responsive top navigation bar module
+├── pages/
+│   └── SMA_vs_EMA.py         # Dedicated separate SMA vs EMA page
 ├── watchlist_manager.py      # Watchlist data management & quote services
 ├── watchlist.json            # Persistent user watchlist
 ├── requirements.txt          # Python dependencies
