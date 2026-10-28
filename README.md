@@ -1,5 +1,13 @@
 # 📈 AlphaStock - Stock Market Analysis & Prediction Platform
 
+> **🎓 ROSPL Project**
+> 
+> **Team Members:**
+> - **Shravani Chirde** (BE-IT-1)
+> - **Shivam R Yadav** (BE-IT-2)
+> - **Neekita Suhag** (BE-IT-2)
+> - **Manali Vajantri** (BE-IT-2)
+
 A modern, interactive financial analytics and stock price forecasting platform built with Python, Streamlit, Plotly, and yFinance. 
 
 ---
@@ -95,3 +103,14 @@ Stock-Market-Analysis-and-Prediction/
 ├── Stock_Analysis_Modern.py  # Standalone script for automated chart generation
 └── README.md                 # Project documentation
 ```
+
+---
+
+## 👥 ROSPL Project - Team Members
+
+| Sr. No. | Name | Class / Division |
+| :---: | :--- | :---: |
+| 1 | **Shravani Chirde** | BE-IT-1 |
+| 2 | **Shivam R Yadav** | BE-IT-2 |
+| 3 | **Neekita Suhag** | BE-IT-2 |
+| 4 | **Manali Vajantri** | BE-IT-2 |
